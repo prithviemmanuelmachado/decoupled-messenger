@@ -1,4 +1,6 @@
 const aws = require('../routes/aws');
+const activityLog = require('../models/activityLog');
+var randomstring = require("randomstring");
 
 function genErrorMessage(errCode, errorMsg, msgID, rcpId){
     aws.sendMessage(
@@ -34,7 +36,19 @@ function genSuccessMessage(Msg, msgID, rcpId){
     )
 }
 
+function addNewActivityLog (userID, category, action, success, errfnc){
+    const log = new activityLog({
+        logID: randomstring.generate(15).toUpperCase(),
+        userID: userID,
+        category: category,
+        action: action
+    })
+
+    log.save().then(success).catch(err => errfnc(err))
+}
+
 module.exports = {
     genErrorMessage,
-    genSuccessMessage
+    genSuccessMessage,
+    addNewActivityLog
 }

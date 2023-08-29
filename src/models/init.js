@@ -8,7 +8,8 @@ function init(callback)
   mongoose.connect(uri, 
   {
     useNewUrlParser: true, 
-    useUnifiedTopology: true
+    useUnifiedTopology: true,
+    dbName: 'Messenger-decoupled',
   });
 
   const db = mongoose.connection;
