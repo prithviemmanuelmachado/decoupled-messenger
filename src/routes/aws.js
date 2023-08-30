@@ -17,10 +17,10 @@ const receiveMessageParams = {
   
 const sqs = new AWS.SQS(SQS_CONFIG);
   
-function sendMessage(data, attributes = null, errorfnc, successfnc) {
+function sendMessage(data, attributes = null, errorfnc, successfnc, url) {
     let params = {
         MessageBody: data,
-        QueueUrl: RESURL,
+        QueueUrl: url === null ? RESURL : url,
     };
   
     if (attributes) {
@@ -66,8 +66,38 @@ function deleteMessage(id, errfnc){
   );
 };
 
+function createQueue(userID, successfnc, errfnc){
+  let d = new Date();
+  var params = {
+    QueueName: userID + '-' + d.getDate()  + '-' + (d.getMonth()+1) + '-' + d.getFullYear() + '-' + d.getHours() + '-' + d.getMinutes()
+  };
+
+  sqs.createQueue(params, (err, data) => {
+    if(err) {
+        errfnc(err);
+    } 
+    else {
+        successfnc(data);
+    } 
+  });
+}
+
+function deleteQueue(url, errfnc){
+  let params = {
+    QueueUrl: url
+  }
+
+  sqs.deleteQueue(params, (err, data) => {
+    if(err){
+      errfnc(err);
+    }
+  })
+}
+
 module.exports= {
     sendMessage,
     receiveMessage,
-    deleteMessage
+    deleteMessage,
+    createQueue,
+    deleteQueue
 }

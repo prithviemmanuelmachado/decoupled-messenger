@@ -8,6 +8,10 @@ const messageSchema = new mongoose.Schema({
     createdDateTime:{
         type: Date,
         default: Date.now()
+    },
+    isMessageRead: {
+        type: Boolean,
+        default: false
     } 
 });
 

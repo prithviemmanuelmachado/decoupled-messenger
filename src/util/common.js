@@ -2,7 +2,7 @@ const aws = require('../routes/aws');
 const activityLog = require('../models/activityLog');
 var randomstring = require("randomstring");
 
-function genErrorMessage(errCode, errorMsg, msgID, rcpId){
+function genErrorMessage(errCode, errorMsg, msgID, rcpId, url){
     aws.sendMessage(
         JSON.stringify(errorMsg), {
             statusCode:{
@@ -15,11 +15,12 @@ function genErrorMessage(errCode, errorMsg, msgID, rcpId){
             }
         },
         (err) => {console.log(err)},
-        (data) => {aws.deleteMessage(rcpId, err => console.log(err))}
+        (data) => {aws.deleteMessage(rcpId, err => console.log(err))}, 
+        url
     )
 }
 
-function genSuccessMessage(Msg, msgID, rcpId){
+function genSuccessMessage(Msg, msgID, rcpId, url){
     aws.sendMessage(
         JSON.stringify(Msg), {
             statusCode:{
@@ -32,7 +33,8 @@ function genSuccessMessage(Msg, msgID, rcpId){
             }
         },
         (err) => {console.log(err)},
-        (data) => {aws.deleteMessage(rcpId, err => console.log(err))}
+        (data) => {aws.deleteMessage(rcpId, err => console.log(err))},
+        url
     )
 }
 
