@@ -1,6 +1,7 @@
 require('dotenv').config('./.env');
 
 const mongoose = require('mongoose');
+const aws = require('../routes/aws');
 const uri = process.env.DBSTRING;
 
 function init(callback)
@@ -30,7 +31,7 @@ function closeConnection (){
     mongoose.connection.close().then(() => {
         console.log('Mongoose disconnected on app termination');
         process.exit(0);
-    }).catch(err => console.log(err));
+    }).catch(err => aws.logError(err, 'Database', 'CloseConnection'));
 }
 
 module.exports = {

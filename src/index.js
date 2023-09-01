@@ -20,7 +20,7 @@ database.init((err) => {
       console.log(`Example app listening at http://localhost:${port}`);
       setInterval(() => {
         aws.receiveMessage((err) => {
-          console.log(err)
+          aws.logError(err, 'Index', 'ReciveMessage');
         }, (data) => {
           if(data.Messages){
             data.Messages.forEach(message => {
@@ -30,7 +30,7 @@ database.init((err) => {
         })
       }, 3000)
     });
-  }
+  }else{aws.logError(err, 'Index', 'DatabaseInit')}
 });
 
 process.on('SIGINT', database.closeConnection);

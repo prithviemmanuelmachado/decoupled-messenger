@@ -24,6 +24,7 @@ function registerUser(userDetails, messageId, recpId){
             bcrypt.hash(userDetails.password, saltRounds)
             .then((hashedPassword, err) => {
                 if(err){
+                    aws.logError(err, 'User', 'Register');
                     common.genErrorMessage('500', dbError, messageId, recpId, null);
                     return;
                 }
@@ -43,14 +44,16 @@ function registerUser(userDetails, messageId, recpId){
                     common.addNewActivityLog(userID, 'USER', 'account crated', () => {
                         common.genSuccessMessage(success, messageId, recpId, null);
                         return;
-                    }, (err) => console.log(err))
+                    }, (err) => aws.logError(err, 'User', 'Register'))
                     return;              
                 })
                 .catch((err) => {
+                    aws.logError(err, 'User', 'Register');
                     common.genErrorMessage('500', dbError, messageId, recpId, null);
                     return;
                 })
             }).catch((err) => {
+                aws.logError(err, 'User', 'Register');
                 common.genErrorMessage('500', dbError, messageId, recpId, null);
                 return;
             }); 
@@ -61,6 +64,7 @@ function registerUser(userDetails, messageId, recpId){
             return;
         }
     }).catch((err) => {
+        aws.logError(err, 'User', 'Register');
         common.genErrorMessage('500', dbError, messageId, recpId, null);
         return;
     });
@@ -71,6 +75,7 @@ function loginUser(userDetails, messageId, recpId) {
     const passError = {'message' : 'Password incorrect'};
     user.findOne({email: userDetails.email}).then((doc, err) => {
         if(err){
+            aws.logError(err, 'User', 'Login');
             common.genErrorMessage('500', dbError, messageId, recpId, null);
             return;
         }
@@ -113,15 +118,18 @@ function loginUser(userDetails, messageId, recpId) {
                                                 {fromUserID: doc.userID},
                                                 {toUserID: doc.userID}
                                             ]}).then((msgsDoc, err) => {
-                                                msgsDoc.forEach(msg => {
-                                                    common.genSuccessMessage({
-                                                        body: msg.body !== null ? msg.body : msg.attachment,
-                                                        to: fromUserID === doc.userID ? null : fromUserID,
-                                                        dateTime: createdDateTime,
-                                                        isMessageRead: isMessageRead
-                                                    }, undefined, undefined, data.QueueUrl, 'message');
-                                                })
-                                            }).catch(err => null);
+                                                if(err){aws.logError(err, 'User', 'SearchUser');}
+                                                else{
+                                                    msgsDoc.forEach(msg => {
+                                                        common.genSuccessMessage({
+                                                            body: msg.body !== null ? msg.body : msg.attachment,
+                                                            to: fromUserID === doc.userID ? null : fromUserID,
+                                                            dateTime: createdDateTime,
+                                                            isMessageRead: isMessageRead
+                                                        }, undefined, undefined, data.QueueUrl, 'message');
+                                                    })
+                                                }
+                                            }).catch(err => aws.logError(err, 'User', 'Login'));
                                         }else{
                                             Message.find({$and: [
                                                 { $or: [
@@ -130,6 +138,7 @@ function loginUser(userDetails, messageId, recpId) {
                                                 ]},
                                                 { createdDateTime: {$gte: doc.logoutDateTime} }
                                             ]}).then((tmsgDoc, terr) => {
+                                                if(terr) {aws.logError(terr, 'User', 'Login');}
                                                 if(tmsgDoc.length > 100){
                                                     tmsgDoc.forEach(msg => {
                                                         common.genSuccessMessage({
@@ -153,10 +162,12 @@ function loginUser(userDetails, messageId, recpId) {
                                                                     isMessageRead: isMessageRead
                                                                 }, undefined, undefined, data.QueueUrl, 'message');
                                                             })
+                                                        }else{
+                                                            aws.logError(berr, 'User', 'Login');
                                                         }
-                                                    }).catch(err => null)
+                                                    }).catch(err => aws.logError(err, 'User', 'Login'))
                                                 }
-                                            }).catch(err => null);
+                                            }).catch(err => aws.logError(err, 'User', 'Login'));
                                         }
 
                                         //send response
@@ -169,12 +180,13 @@ function loginUser(userDetails, messageId, recpId) {
                                         return;              
                                     })
                                     .catch((err) => {
+                                        aws.logError(err, 'User', 'Login');
                                         common.genErrorMessage('500', dbError, messageId, recpId, null);
                                         return;
                                     })
-                                }, (err) => console.log(err))
+                                }, (err) => aws.logError(err, 'User', 'Login'))
                                 return;
-                            }, (err) => console.log(err))
+                            }, (err) => aws.logError(err, 'User', 'Login'))
                             return;
                         }
                         else{
@@ -188,6 +200,7 @@ function loginUser(userDetails, messageId, recpId) {
             }
         }
     }).catch(err => {
+        aws.logError(err, 'User', 'Login');
         common.genErrorMessage('500', dbError, messageId, recpId, null);
         return;
     });
@@ -199,19 +212,19 @@ function logout(model, recpId, decoded) {
             logoutDateTime: Date.now()
         }}).then((doc) => {
             common.addNewActivityLog(decoded.userID, 'USER', 'user logout', () => {
-                aws.deleteQueue(model.url, err => console.log(err));
-                aws.deleteMessage(recpId, err => console.log(err));
+                aws.deleteQueue(model.url, err => aws.logError(err, 'User', 'Logout'));
+                aws.deleteMessage(recpId, err => aws.logError(err, 'User', 'Logout'));
                 return;
-            }, (err) => console.log(err))
+            }, (err) => aws.logError(err, 'User', 'Logout'))
         })        
-    }).catch(err => console.log(err))
+    }).catch(err => aws.logError(err, 'User', 'Logout'))
 }
 
 function setDarkModeState(model, recpId, decoded) {
     user.findOneAndUpdate({userID: decoded.userID}, { $set : {
         darkModeState: model.darkModeState
     }}).then((doc) => {
-        aws.deleteMessage(recpId, err => null);
+        aws.deleteMessage(recpId, err => aws.logError(err, 'User', 'SetDarkModeState'));
     }) 
 }
 
@@ -230,6 +243,7 @@ function searchUser(model, messageId, recpId, decoded, url){
         ]
     }).then((doc, err) => {
         if(err){
+            aws.logError(err, 'User', 'SearchUser');
             common.genErrorMessage('500', dbError, messageId, recpId, url, 'searchUser');
             return;
         }
@@ -246,6 +260,7 @@ function searchUser(model, messageId, recpId, decoded, url){
             return;
         }
     }).catch(err => {
+        aws.logError(err, 'User', 'SearchUser');
         common.genErrorMessage('500', dbError, messageId, recpId, url, 'searchUser');
         return;
     })

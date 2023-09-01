@@ -2,11 +2,13 @@ const AWS = require('aws-sdk');
 
 const REQURL = process.env.SERVER_REQ_QUEUE;
 const RESURL = process.env.SERVER_RES_QUEUE;
-const SQS_CONFIG = {
+const CONFIG = {
     accessKeyId: process.env.ACCESS_KEY,
     secretAccessKey: process.env.SECRET_ACCESS_KEY,
     region: process.env.REGION,
 };
+const sqs = new AWS.SQS(CONFIG);
+const logs = new AWS.CloudWatchLogs(CONFIG);
 
 const receiveMessageParams = {
     MaxNumberOfMessages: 10,
@@ -14,8 +16,11 @@ const receiveMessageParams = {
     WaitTimeSeconds: 10,
     MessageAttributeNames: ['All'],
 };
+const logPrams = {
+  logGroupName: process.env.LOGGROUP,
+  logStreamName: process.env.LOGSTREAM
+}
   
-const sqs = new AWS.SQS(SQS_CONFIG);
   
 function sendMessage(data, attributes = null, errorfnc, successfnc, url) {
     let params = {
@@ -94,10 +99,25 @@ function deleteQueue(url, errfnc){
   })
 }
 
+function logError(err, controller, method){
+  try{
+    logs.putLogEvents({
+      ...logPrams,
+      logEvents: [{
+        message: 'Controller: ' + controller + ' >>> Method: ' + method + ' >>> Error: ' + JSON.stringify(err.stack),
+        timestamp: Date.now()
+      }]
+    }).promise();
+  }catch (e){
+    console.log(e)
+  }
+}
+
 module.exports= {
-    sendMessage,
-    receiveMessage,
-    deleteMessage,
-    createQueue,
-    deleteQueue
+  sendMessage,
+  receiveMessage,
+  deleteMessage,
+  createQueue,
+  deleteQueue,
+  logError
 }

@@ -2,6 +2,7 @@ const Message = require("../models/message");
 const Session = require('../models/session');
 const common = require('../util/common');
 const randomstring = require("randomstring");
+const aws = require('../util/auth');
 
 function addMessage(model, recpId, decoded, url){
     //add message to database
@@ -19,6 +20,7 @@ function addMessage(model, recpId, decoded, url){
 
     newMessage.save().then(() => {
         Session.findOne({userID: decoded.userID}).then((doc, err) => {
+            if(err){aws.logError(err, 'Message', 'AddMessage');}
             if(doc.userID){
                 common.genSuccessMessage(JSON.stringify({
                     body: model.body,
@@ -26,8 +28,8 @@ function addMessage(model, recpId, decoded, url){
                     dateTime: newMessage.createdDateTime
                 }), undefined, recpId, url, 'message');
             }
-        }).catch(err => null);
-    }).catch(err => null);
+        }).catch(err => aws.logError(err, 'Message', 'AddMessage'));
+    }).catch(err => aws.logError(err, 'Message', 'AddMessage'));
 
 }
 
@@ -38,7 +40,7 @@ function markMessagesAsRead(model, recpId, decoded){
             {fromUserID: model.userID},
             {toUserID: decoded.userID}
         ]
-    }, {isMessageRead: true}).then(data => console.log(data)).catch(err => console.log(err));
+    }, {isMessageRead: true}).then(data => null).catch(err => aws.logError(err, 'Message', 'MarkMessageAsRead'));
 }
 
 function selectSearchUser(model, recpId, decoded, url){
@@ -57,7 +59,7 @@ function selectSearchUser(model, recpId, decoded, url){
         }
     ]}).sort({createdDateTime: -1}).limit(20).then((msgDoc, berr) => {
         if(!berr){
-            var uMsgs = bmsgDoc.map(msg => {
+            var uMsgs = msgDoc.map(msg => {
                 return {
                     body: msg.body !== null ? msg.body : msg.attachment,
                     to: fromUserID === decoded.userID ? null : fromUserID,
@@ -66,8 +68,10 @@ function selectSearchUser(model, recpId, decoded, url){
                 }
             })
             common.genSuccessMessage(JSON.stringify(uMsgs), undefined, recpId, url, 'selectSearchUser');
+        }else{
+            aws.logError(err, 'Message', 'SelectSearchUser');
         }
-    }).catch(err => null)
+    }).catch(err => aws.logError(err, 'Message', 'SelectSearchUser'))
 }
 
 module.exports = {
