@@ -6,7 +6,8 @@ const userSchema = new mongoose.Schema({
     fName: String,
     lName: String,
     darkModeState: Boolean,
-    passwordHash: String
+    passwordHash: String,
+    logoutDateTime: Date
 });
 
 const User = mongoose.model('user', userSchema);

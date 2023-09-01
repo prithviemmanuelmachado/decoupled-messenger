@@ -23,7 +23,9 @@ database.init((err) => {
           console.log(err)
         }, (data) => {
           if(data.Messages){
-            router.Entry(data.Messages[0])
+            data.Messages.forEach(message => {
+              router.Entry(message)
+            });
           }
         })
       }, 3000)

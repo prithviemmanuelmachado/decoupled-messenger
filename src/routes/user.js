@@ -4,11 +4,10 @@ const user = require('../models/user');
 const aws = require('./aws');
 const common = require('../util/common');
 const bcrypt = require('bcrypt');
-var randomstring = require("randomstring");
+const randomstring = require("randomstring");
 const jwt = require('jsonwebtoken');
-const auth = require('../util/auth');
 const Session = require('../models/session');
-const message = require('../models/message');
+const Message = require('../models/message');
 
 const saltRounds = parseInt(process.env.SALTROUNDS);
 const dbError = {'message': 'Error connecting to database. Please contact admin.'};
@@ -102,12 +101,64 @@ function loginUser(userDetails, messageId, recpId) {
                                     newSession.save()
                                     .then(() => {
                                         const jwtToken = jwt.sign({
-                                            userID: doc.userID
+                                            userID: doc.userID,
+                                            name: doc.fName+' '+doc.lName
                                         }, key, {
                                             expiresIn: jwtExpiresIn
                                         });
+
                                         //get users with unread messages for session
-                                           //Work in progress
+                                        if(doc.logoutDateTime === null){
+                                            Message.find({ $or: [
+                                                {fromUserID: doc.userID},
+                                                {toUserID: doc.userID}
+                                            ]}).then((msgsDoc, err) => {
+                                                msgsDoc.forEach(msg => {
+                                                    common.genSuccessMessage({
+                                                        body: msg.body !== null ? msg.body : msg.attachment,
+                                                        to: fromUserID === doc.userID ? null : fromUserID,
+                                                        dateTime: createdDateTime,
+                                                        isMessageRead: isMessageRead
+                                                    }, undefined, undefined, data.QueueUrl, 'message');
+                                                })
+                                            }).catch(err => null);
+                                        }else{
+                                            Message.find({$and: [
+                                                { $or: [
+                                                    {fromUserID: doc.userID},
+                                                    {toUserID: doc.userID}
+                                                ]},
+                                                { createdDateTime: {$gte: doc.logoutDateTime} }
+                                            ]}).then((tmsgDoc, terr) => {
+                                                if(tmsgDoc.length > 100){
+                                                    tmsgDoc.forEach(msg => {
+                                                        common.genSuccessMessage({
+                                                            body: msg.body !== null ? msg.body : msg.attachment,
+                                                            to: fromUserID === doc.userID ? null : fromUserID,
+                                                            dateTime: createdDateTime,
+                                                            isMessageRead: isMessageRead
+                                                        }, undefined, undefined, data.QueueUrl, 'message');
+                                                    })
+                                                }else{
+                                                    Message.find({ $or: [
+                                                        {fromUserID: doc.userID},
+                                                        {toUserID: doc.userID}
+                                                    ]}).sort({createdDateTime: -1}).limit(100).then((bmsgDoc, berr) => {
+                                                        if(!berr){
+                                                            bmsgDoc.forEach(msg => {
+                                                                common.genSuccessMessage({
+                                                                    body: msg.body !== null ? msg.body : msg.attachment,
+                                                                    to: fromUserID === doc.userID ? null : fromUserID,
+                                                                    dateTime: createdDateTime,
+                                                                    isMessageRead: isMessageRead
+                                                                }, undefined, undefined, data.QueueUrl, 'message');
+                                                            })
+                                                        }
+                                                    }).catch(err => null)
+                                                }
+                                            }).catch(err => null);
+                                        }
+
                                         //send response
                                         common.genSuccessMessage({
                                             message: 'Login successful. Redirecting....',
@@ -142,20 +193,30 @@ function loginUser(userDetails, messageId, recpId) {
     });
 }
 
-function logout(model, recpId, token) {
-    const decoded = auth(token);
+function logout(model, recpId, decoded) {
     Session.deleteMany({userID: decoded.userID}).then(data => {
-        common.addNewActivityLog(decoded.userID, 'USER', 'user logout', () => {
-            aws.deleteQueue(model.url, err => console.log(err));
-            aws.deleteMessage(recpId, err => console.log(err));
-            return;
-        }, (err) => console.log(err))
+        user.findOneAndUpdate({userID: decoded.userID}, { $set : {
+            logoutDateTime: Date.now()
+        }}).then((doc) => {
+            common.addNewActivityLog(decoded.userID, 'USER', 'user logout', () => {
+                aws.deleteQueue(model.url, err => console.log(err));
+                aws.deleteMessage(recpId, err => console.log(err));
+                return;
+            }, (err) => console.log(err))
+        })        
     }).catch(err => console.log(err))
 }
 
-function searchUser(model, messageId, recpId, token, url){
-    const decoded = auth(token);
-    user.findOne({
+function setDarkModeState(model, recpId, decoded) {
+    user.findOneAndUpdate({userID: decoded.userID}, { $set : {
+        darkModeState: model.darkModeState
+    }}).then((doc) => {
+        aws.deleteMessage(recpId, err => null);
+    }) 
+}
+
+function searchUser(model, messageId, recpId, decoded, url){
+    user.find({
         $and: [
             {
                 $or: [
@@ -169,18 +230,23 @@ function searchUser(model, messageId, recpId, token, url){
         ]
     }).then((doc, err) => {
         if(err){
-            common.genErrorMessage('500', dbError, messageId, recpId, url);
+            common.genErrorMessage('500', dbError, messageId, recpId, url, 'searchUser');
             return;
         }
         else{
-            console.log(doc)
             common.genSuccessMessage({
-                listOfUsers: doc
-            }, messageId, recpId, url);
+                listOfUsers: doc.map(ele => {
+                    return {
+                        name: ele.fName + ' ' + ele.lName,
+                        unreadMessages: -1,
+                        userID: ele.userID
+                    }
+                })
+            }, messageId, recpId, url, 'searchUser');
             return;
         }
     }).catch(err => {
-        common.genErrorMessage('500', dbError, messageId, recpId, url);
+        common.genErrorMessage('500', dbError, messageId, recpId, url, 'searchUser');
         return;
     })
 }
@@ -189,5 +255,6 @@ module.exports = {
     registerUser,
     loginUser,
     logout,
-    searchUser
+    searchUser,
+    setDarkModeState
 }

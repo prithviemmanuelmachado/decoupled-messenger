@@ -20,20 +20,34 @@ function genErrorMessage(errCode, errorMsg, msgID, rcpId, url){
     )
 }
 
-function genSuccessMessage(Msg, msgID, rcpId, url){
+function genSuccessMessage(Msg, msgID, rcpId, url, action){
+    let attrb = {
+        statusCode:{
+            DataType: 'String',
+            StringValue: '200'
+        }
+    }
+    if (msgID){
+        attrb.resTo = {
+            DataType: 'String',
+            StringValue: msgID
+        }
+    }   
+    if(action){
+        attrb.action = {
+            DataType: 'String',
+            StringValue: action
+        }
+    }
     aws.sendMessage(
-        JSON.stringify(Msg), {
-            statusCode:{
-                DataType: 'String',
-                StringValue: '200'
-            },
-            resTo:{
-                DataType: 'String',
-                StringValue: msgID
+        JSON.stringify(Msg),
+        attrb,
+        (err) => {console.log(err)},
+        (data) => {
+            if(rcpId){
+                aws.deleteMessage(rcpId, err => console.log(err))
             }
         },
-        (err) => {console.log(err)},
-        (data) => {aws.deleteMessage(rcpId, err => console.log(err))},
         url
     )
 }
