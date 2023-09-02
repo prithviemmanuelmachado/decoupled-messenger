@@ -118,12 +118,14 @@ function loginUser(userDetails, messageId, recpId) {
                                                 {fromUserID: doc.userID},
                                                 {toUserID: doc.userID}
                                             ]}).then((msgsDoc, err) => {
-                                                if(err){aws.logError(err, 'User', 'SearchUser');}
+                                                if(err){aws.logError(err, 'User', 'Login');}
                                                 else{
                                                     msgsDoc.forEach(msg => {
                                                         common.genSuccessMessage({
                                                             body: msg.body !== null ? msg.body : msg.attachment,
-                                                            to: msg.fromUserID === decoded.userID ? msg.toUserID : null,
+                                                            userID: msg.fromUserID === doc.userID? msg.toUserID : msg.fromUserID,
+                                                            name: msg.fromUserID === doc.userID? msg.toName : msg.fromName,
+                                                            to: msg.fromUserID === doc.userID ? msg.toUserID : null,
                                                             dateTime: new Date(msg.createdDateTime),
                                                             isMessageRead: msg.isMessageRead
                                                         }, undefined, undefined, data.QueueUrl, 'message');
@@ -143,7 +145,9 @@ function loginUser(userDetails, messageId, recpId) {
                                                     tmsgDoc.forEach(msg => {
                                                         common.genSuccessMessage({
                                                             body: msg.body !== null ? msg.body : msg.attachment,
-                                                            to: msg.fromUserID === decoded.userID ? msg.toUserID : null,
+                                                            userID: msg.fromUserID === doc.userID? msg.toUserID : msg.fromUserID,
+                                                            name: msg.fromUserID === doc.userID? msg.toName : msg.fromName,
+                                                            to: msg.fromUserID === doc.userID ? msg.toUserID : null,
                                                             dateTime: new Date(msg.createdDateTime),
                                                             isMessageRead: msg.isMessageRead
                                                         }, undefined, undefined, data.QueueUrl, 'message');
@@ -157,7 +161,9 @@ function loginUser(userDetails, messageId, recpId) {
                                                             bmsgDoc.forEach(msg => {
                                                                 common.genSuccessMessage({
                                                                     body: msg.body !== null ? msg.body : msg.attachment,
-                                                                    to: msg.fromUserID === decoded.userID ? msg.toUserID : null,
+                                                                    userID: msg.fromUserID === doc.userID? msg.toUserID : msg.fromUserID,
+                                                                    name: msg.fromUserID === doc.userID? msg.toName : msg.fromName,
+                                                                    to: msg.fromUserID === doc.userID ? msg.toUserID : null,
                                                                     dateTime: new Date(msg.createdDateTime),
                                                                     isMessageRead: msg.isMessageRead
                                                                 }, undefined, undefined, data.QueueUrl, 'message');

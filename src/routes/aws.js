@@ -104,7 +104,7 @@ function logError(err, controller, method){
     logs.putLogEvents({
       ...logPrams,
       logEvents: [{
-        message: 'Controller: ' + controller + ' >>> Method: ' + method + ' >>> Error: ' + JSON.stringify(err.stack),
+        message: 'CONTROLLER >>> ' + controller + ' >>> METHOD >>> ' + method + ' >>> ERROR >>> ' + JSON.stringify(err.stack),
         timestamp: Date.now()
       }]
     }).promise();

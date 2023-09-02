@@ -21,10 +21,12 @@ function addMessage(model, recpId, decoded, url){
     newMessage.save().then(() => {
         Session.findOne({userID: model.userID}).then((doc, err) => {
             if(err){aws.logError(err, 'Message', 'AddMessage');}
-            if(doc!==null){
+            if(doc){
                 common.genSuccessMessage({
                     body: model.body,
-                    to: decoded.userID,
+                    userID: decoded.userID,
+                    name: decoded.name,
+                    to: null,
                     dateTime: newMessage.createdDateTime
                 }, undefined, recpId, url, 'message');
             }else{
