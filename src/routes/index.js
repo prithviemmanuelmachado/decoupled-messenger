@@ -1,5 +1,6 @@
 const aws = require('./aws');
 const user = require('./user');
+const Message = require('./message');
 const auth = require('../util/auth');
 const common = require('../util/common');
 
@@ -41,7 +42,7 @@ function Entry(message){
                 }
                 if(message.MessageAttributes.controller.StringValue === 'message'){
                     if(message.MessageAttributes.method.StringValue === 'add'){
-                        user.searchUser(
+                        Message.addMessage(
                             JSON.parse(message.Body), 
                             message.ReceiptHandle, 
                             decoded,
@@ -49,7 +50,7 @@ function Entry(message){
                         );
                     }
                     if(message.MessageAttributes.method.StringValue === 'selectSearchUser'){
-                        user.selectSearchUser(
+                        Message.selectSearchUser(
                             JSON.parse(message.Body), 
                             message.ReceiptHandle, 
                             decoded,
@@ -57,7 +58,7 @@ function Entry(message){
                         );
                     }
                     if(message.MessageAttributes.method.StringValue === 'markMessagesAsRead'){
-                        user.selectSearchUser(
+                        Message.markMessagesAsRead(
                             JSON.parse(message.Body), 
                             message.ReceiptHandle, 
                             decoded

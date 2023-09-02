@@ -14,8 +14,8 @@ function genErrorMessage(errCode, errorMsg, msgID, rcpId, url){
                 StringValue: msgID
             }
         },
-        (err) => {console.log(err)},
-        (data) => {aws.deleteMessage(rcpId, err => console.log(err))}, 
+        (err) => {aws.logError(err, 'Message', 'AddMessage')},
+        (data) => {aws.deleteMessage(rcpId, err => aws.logError(err, 'Message', 'AddMessage'))}, 
         url
     )
 }
@@ -42,10 +42,10 @@ function genSuccessMessage(Msg, msgID, rcpId, url, action){
     aws.sendMessage(
         JSON.stringify(Msg),
         attrb,
-        (err) => {console.log(err)},
+        (err) => {aws.logError(err, 'Message', 'AddMessage')},
         (data) => {
             if(rcpId){
-                aws.deleteMessage(rcpId, err => console.log(err))
+                aws.deleteMessage(rcpId, err => aws.logError(err, 'Message', 'AddMessage'))
             }
         },
         url

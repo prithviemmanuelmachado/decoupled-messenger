@@ -19,7 +19,7 @@ const messageSchema = new mongoose.Schema({
         url: {
             type: String
         },
-        attType: {
+        type: {
             type: String
         },
         size: {
