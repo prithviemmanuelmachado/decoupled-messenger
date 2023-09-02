@@ -28,7 +28,7 @@ function addMessage(model, recpId, decoded, url){
                     name: decoded.name,
                     to: null,
                     dateTime: newMessage.createdDateTime
-                }, undefined, recpId, url, 'message');
+                }, undefined, recpId, doc.sessionUrl, 'message');
             }else{
                 aws.deleteMessage(recpId, err => aws.logError(err, 'Message', 'AddMessage'))
             }
