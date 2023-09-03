@@ -1,0 +1,288 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Trying to implement CICD for a simple full stack app",
+
+  "Parameters" : {
+
+    "AppInstanceType" : {
+      "Description" : "App server EC2 instance type",
+      "Type" : "String",
+      "Default" : "t2.micro",
+      "AllowedValues" : ["t2.micro"],
+      "ConstraintDescription" : "must be a valid EC2 instance type."
+    },
+    "publicALB" : {
+      "Description" : "Public ALB SG",
+      "Type" : "AWS::EC2::SecurityGroup::Id"
+    },
+    "publicInstance" : {
+      "Description" : "Public Instance SG",
+      "Type" : "AWS::EC2::SecurityGroup::Id"
+    },
+    "VpcId" : {
+      "Description" : "VPC",
+      "Type" : "AWS::EC2::VPC::Id"
+    },
+    "PublicSubnets" : {
+      "Description" : "List of public subnets",
+      "Type" : "List<AWS::EC2::Subnet::Id>"
+    }
+  },
+
+  "Mappings" : {
+    "KeyName" : {
+      "pem" : { "ID" : "CICD_KeyPair" }
+    },
+
+    "AWSInstanceType2Arch" : {
+      "t2.micro" : { "Arch" : "HVM64"  }
+    },
+
+    "AWSInstanceType2NATArch" : {
+      "t2.micro" : { "Arch" : "NATHVM64"  }
+    },
+
+    "AWSRegionArch2AMI" : {
+      "ap-south-1" : {"HVM64" : "ami-0ded8326293d3201b", "HVMG2" : "ami-02bc45136ff0b128e"}
+    }
+
+  },
+
+  "Resources" : {
+
+    "AppServerGroup" : {
+      "Type" : "AWS::AutoScaling::AutoScalingGroup",
+      "Properties" : {
+        "VPCZoneIdentifier" : { "Ref": "PublicSubnets" },
+        "LaunchTemplate": {
+          "LaunchTemplateId" : { "Ref" : "LaunchConfig" },
+          "Version" : { "Fn::GetAtt": [ "LaunchConfig", "LatestVersionNumber" ] }
+        },
+        "MinSize" : "1",
+        "MaxSize" : "2",
+        "TargetGroupARNs" : [ { "Ref" : "ALBTargetGroup" } ]
+      },
+      "CreationPolicy" : {
+        "ResourceSignal" : {
+          "Timeout" : "PT15M",
+          "Count"   : "1"
+        }
+      },
+      "UpdatePolicy": {
+        "AutoScalingRollingUpdate": {
+          "MinInstancesInService": "1",
+          "MaxBatchSize": "1",
+          "PauseTime" : "PT15M",
+          "WaitOnResourceSignals": "true"
+        }
+      }
+    },
+
+    "EC2InstanceProfile": {
+      "Type" : "AWS::IAM::InstanceProfile",
+      "Properties" : {
+          "InstanceProfileName" : "EC2InstanceProfileCICD",
+          "Roles" : [ "ec2CodeDeployRole" ]
+        }
+    },
+
+    "LaunchConfig": {
+      "Type" : "AWS::EC2::LaunchTemplate",
+      "Metadata" : {
+        "Comment" : "Install a simple application",
+        "AWS::CloudFormation::Init" : {
+          "config" : {
+
+            "files" : {
+              "/etc/cfn/cfn-hup.conf" : {
+                "content" : { "Fn::Join" : ["", [
+                  "[main]\n",
+                  "stack=", { "Ref" : "AWS::StackId" }, "\n",
+                  "region=", { "Ref" : "AWS::Region" }, "\n"
+                ]]},
+                "mode"    : "000400",
+                "owner"   : "root",
+                "group"   : "root"
+              },
+
+              "/etc/cfn/hooks.d/cfn-auto-reloader.conf" : {
+                "content": { "Fn::Join" : ["", [
+                  "[cfn-auto-reloader-hook]\n",
+                  "triggers=post.update\n",
+                  "path=Resources.LaunchConfig.Metadata.AWS::CloudFormation::Init\n",
+                  "action=/opt/aws/bin/cfn-init -v ",
+                  "         --stack ", { "Ref" : "AWS::StackName" },
+                  "         --resource LaunchConfig ",
+                  "         --region ", { "Ref" : "AWS::Region" }, "\n",
+                  "runas=root\n"
+                ]]},
+                "mode"    : "000400",
+                "owner"   : "root",
+                "group"   : "root"
+              }
+            },
+
+            "services" : {
+              "sysvinit" : {
+                "cfn-hup" : { "enabled" : "true", "ensureRunning" : "true",
+                              "files" : ["/etc/cfn/cfn-hup.conf", "/etc/cfn/hooks.d/cfn-auto-reloader.conf"]}
+              }
+            }
+          }
+        }
+      },
+      "Properties" : {
+          "LaunchTemplateData" : {
+            "IamInstanceProfile" : {
+              "Name": { "Ref" : "EC2InstanceProfile" }
+            },
+            "ImageId" : { "Fn::FindInMap" : [ 
+              "AWSRegionArch2AMI", 
+              { "Ref" : "AWS::Region" },
+              { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "AppInstanceType" }, "Arch" ] } 
+            ] },
+            "InstanceType" : { "Ref" : "AppInstanceType" },
+            "KeyName" : { 
+              "Fn::FindInMap" : [ 
+                "KeyName", 
+                "pem",
+                "ID" 
+              ] 
+            },
+            "SecurityGroupIds" : [
+              {"Ref": "publicInstance"}
+            ],
+            "UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+              "#!/bin/bash -ex\n",
+              "sudo yum update -y\n",
+              "sudo yum install -y ruby wget\n",
+              "sudo wget https://aws-codedeploy-ap-south-1.s3.ap-south-1.amazonaws.com/latest/install\n",
+              "sudo chmod +x ./install\n",
+              "sudo ./install auto\n",
+              "sudo service codedeploy-agent status\n",
+              "sudo yum update -y aws-cfn-bootstrap\n",
+ 
+              "sudo yum update -y aws-cli\n",
+ 
+              "sudo /opt/aws/bin/cfn-init -v ",
+              "         --stack ", { "Ref" : "AWS::StackName" },
+              "         --resource LaunchConfig ", 
+              "         --region ", { "Ref" : "AWS::Region" }, "\n",
+ 
+              "sudo /opt/aws/bin/cfn-signal -e $? ",
+              "         --stack ", { "Ref" : "AWS::StackName" },
+              "         --resource AppServerGroup ",
+              "         --region ", { "Ref" : "AWS::Region" }, "\n" ,
+              "sudo yum install -y nodejs\n"
+            ]]}}
+          },
+          "LaunchTemplateName" : { "Fn::Sub": "${AWS::StackName}-launch-template" }
+        }
+    },
+
+    "AppServerScaleUpPolicy" : {
+      "Type" : "AWS::AutoScaling::ScalingPolicy",
+      "Properties" : {
+        "AdjustmentType" : "ChangeInCapacity",
+        "AutoScalingGroupName" : { "Ref" : "AppServerGroup" },
+        "Cooldown" : "60",
+        "ScalingAdjustment" : "1"
+      }
+    },
+    "AppServerScaleDownPolicy" : {
+      "Type" : "AWS::AutoScaling::ScalingPolicy",
+      "Properties" : {
+        "AdjustmentType" : "ChangeInCapacity",
+        "AutoScalingGroupName" : { "Ref" : "AppServerGroup" },
+        "Cooldown" : "60",
+        "ScalingAdjustment" : "-1"
+      }
+    },
+
+    "CPUAlarmHigh": {
+     "Type": "AWS::CloudWatch::Alarm",
+     "Properties": {
+        "AlarmDescription": "Scale-up if CPU > 90% for 10 minutes",
+        "MetricName": "CPUUtilization",
+        "Namespace": "AWS/EC2",
+        "Statistic": "Average",
+        "Period": "300",
+        "EvaluationPeriods": "2",
+        "Threshold": "90",
+        "AlarmActions": [ { "Ref": "AppServerScaleUpPolicy" } ],
+        "Dimensions": [
+          {
+            "Name": "AutoScalingGroupName",
+            "Value": { "Ref": "AppServerGroup" }
+          }
+        ],
+        "ComparisonOperator": "GreaterThanThreshold"
+      }
+    },
+    "CPUAlarmLow": {
+     "Type": "AWS::CloudWatch::Alarm",
+     "Properties": {
+        "AlarmDescription": "Scale-down if CPU < 70% for 10 minutes",
+        "MetricName": "CPUUtilization",
+        "Namespace": "AWS/EC2",
+        "Statistic": "Average",
+        "Period": "300",
+        "EvaluationPeriods": "2",
+        "Threshold": "70",
+        "AlarmActions": [ { "Ref": "AppServerScaleDownPolicy" } ],
+        "Dimensions": [
+          {
+            "Name": "AutoScalingGroupName",
+            "Value": { "Ref": "AppServerGroup" }
+          }
+        ],
+        "ComparisonOperator": "LessThanThreshold"
+      }
+    },
+
+    "ApplicationLoadBalancer" : {
+      "Type" : "AWS::ElasticLoadBalancingV2::LoadBalancer",
+      "Properties" : {
+        "Subnets" : { "Ref" : "PublicSubnets" },
+        "SecurityGroups" : [
+          { "Ref" : "publicALB" }
+        ]
+      }
+    },
+
+    "ALBListener" : {
+      "Type" : "AWS::ElasticLoadBalancingV2::Listener",
+      "Properties" : {
+        "DefaultActions" : [{
+          "Type" : "forward",
+          "TargetGroupArn" : { "Ref" : "ALBTargetGroup" }
+        }],
+        "LoadBalancerArn" : { "Ref" : "ApplicationLoadBalancer" },
+        "Port" : "80",
+        "Protocol" : "HTTP"
+      }
+    },
+
+    "ALBTargetGroup" : {
+      "Type" : "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties" : {
+        "HealthCheckIntervalSeconds" : 30,
+        "HealthCheckTimeoutSeconds" : 5,
+        "HealthyThresholdCount" : 3,
+        "Port" : 80,
+        "Protocol" : "HTTP",
+        "UnhealthyThresholdCount" : 5,
+        "VpcId" : {"Ref" : "VpcId"}
+      }
+    }
+  },
+
+  "Outputs" : {
+    "URL" : {
+      "Description" : "The URL of the website",
+      "Value" :  { "Fn::Join" : [ "", [ "http://", { "Fn::GetAtt" : [
+          "ApplicationLoadBalancer", "DNSName" ]}]]}
+    }
+  }
+}
