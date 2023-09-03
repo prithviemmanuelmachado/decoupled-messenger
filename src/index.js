@@ -18,17 +18,17 @@ database.init((err) => {
   if(!err){
     app.listen(port, () => {
       console.log(`Example app listening at http://localhost:${port}`);
-      // setInterval(() => {
-      //   aws.receiveMessage((err) => {
-      //     aws.logError(err, 'Index', 'ReciveMessage');
-      //   }, (data) => {
-      //     if(data.Messages){
-      //       data.Messages.forEach(message => {
-      //         router.Entry(message)
-      //       });
-      //     }
-      //   })
-      // }, 3000)
+      setInterval(() => {
+        aws.receiveMessage((err) => {
+          aws.logError(err, 'Index', 'ReciveMessage');
+        }, (data) => {
+          if(data.Messages){
+            data.Messages.forEach(message => {
+              router.Entry(message)
+            });
+          }
+        })
+      }, 3000)
     });
   }else{aws.logError(err, 'Index', 'DatabaseInit')}
 });
