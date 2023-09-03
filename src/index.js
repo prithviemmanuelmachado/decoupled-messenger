@@ -15,10 +15,12 @@ app.use(cors());
 app.use(bodyParser.json());
 
 database.init((err) => {
+  console.log('in db connect');
   if(!err){
     app.listen(port, () => {
       console.log(`Example app listening at http://localhost:${port}`);
       setInterval(() => {
+        console.log('test');
         aws.receiveMessage((err) => {
           aws.logError(err, 'Index', 'ReciveMessage');
         }, (data) => {
