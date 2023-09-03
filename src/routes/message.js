@@ -15,7 +15,8 @@ function addMessage(model, recpId, decoded, url){
         toUserID: model.userID,
         toName: model.name,
         body: typeof model.body === 'string' ? model.body : null,
-        attachment: typeof model.body === 'object' ? model.body : null
+        attachment: typeof model.body === 'object' ? model.body : null,
+        createdDateTime: model.dateTime
     });
 
     newMessage.save().then(() => {
