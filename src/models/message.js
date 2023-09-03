@@ -25,7 +25,8 @@ const messageSchema = new mongoose.Schema({
         size: {
             type: Number
         }
-    }
+    },
+    order: Number
 });
 
 const Message = mongoose.model('message', messageSchema);

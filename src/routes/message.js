@@ -16,7 +16,8 @@ function addMessage(model, recpId, decoded, url){
         toName: model.name,
         body: typeof model.body === 'string' ? model.body : null,
         attachment: typeof model.body === 'object' ? model.body : null,
-        createdDateTime: model.dateTime
+        createdDateTime: model.dateTime,
+        order: parseInt(model.order)
     });
 
     newMessage.save().then(() => {
@@ -28,7 +29,8 @@ function addMessage(model, recpId, decoded, url){
                     userID: decoded.userID,
                     name: decoded.name,
                     to: null,
-                    dateTime: newMessage.createdDateTime
+                    dateTime: newMessage.createdDateTime,
+                    order: model.order
                 }, undefined, recpId, doc.sessionUrl, 'message');
             }else{
                 aws.deleteMessage(recpId, err => aws.logError(err, 'Message', 'AddMessage'))
@@ -74,7 +76,8 @@ function selectSearchUser(model, recpId, decoded, url){
                     body: msg.body !== null ? msg.body : msg.attachment,
                     to: msg.fromUserID === decoded.userID ? msg.toUserID : null,
                     dateTime: new Date(msg.createdDateTime),
-                    isMessageRead: msg.isMessageRead
+                    isMessageRead: msg.isMessageRead,
+                    order: msg.order
                 }
             })
             common.genSuccessMessage(uMsgs, undefined, recpId, url, 'selectSearchUser');

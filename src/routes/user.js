@@ -127,7 +127,8 @@ function loginUser(userDetails, messageId, recpId) {
                                                             name: msg.fromUserID === doc.userID? msg.toName : msg.fromName,
                                                             to: msg.fromUserID === doc.userID ? msg.toUserID : null,
                                                             dateTime: new Date(msg.createdDateTime),
-                                                            isMessageRead: msg.isMessageRead
+                                                            isMessageRead: msg.isMessageRead,
+                                                            order: msg.order
                                                         }, undefined, undefined, data.QueueUrl, 'message');
                                                     })
                                                 }
@@ -149,7 +150,8 @@ function loginUser(userDetails, messageId, recpId) {
                                                             name: msg.fromUserID === doc.userID? msg.toName : msg.fromName,
                                                             to: msg.fromUserID === doc.userID ? msg.toUserID : null,
                                                             dateTime: new Date(msg.createdDateTime),
-                                                            isMessageRead: msg.isMessageRead
+                                                            isMessageRead: msg.isMessageRead,
+                                                            order: msg.order
                                                         }, undefined, undefined, data.QueueUrl, 'message');
                                                     })
                                                 }else{
@@ -165,7 +167,8 @@ function loginUser(userDetails, messageId, recpId) {
                                                                     name: msg.fromUserID === doc.userID? msg.toName : msg.fromName,
                                                                     to: msg.fromUserID === doc.userID ? msg.toUserID : null,
                                                                     dateTime: new Date(msg.createdDateTime),
-                                                                    isMessageRead: msg.isMessageRead
+                                                                    isMessageRead: msg.isMessageRead,
+                                                                    order: msg.order
                                                                 }, undefined, undefined, data.QueueUrl, 'message');
                                                             })
                                                         }else{
