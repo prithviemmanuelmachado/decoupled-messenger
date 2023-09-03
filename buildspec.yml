@@ -6,7 +6,6 @@ phases:
   pre_build:
     commands:
       - echo Installing source NPM dependencies...
-      - echo "testing">> test.txt
       - chmod +x ./scripts/create_vars.sh
       - sh ./scripts/create_vars.sh
   build:

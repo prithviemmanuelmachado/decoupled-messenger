@@ -1,4 +1,7 @@
 #!/bin/sh
+echo "testing">> test.txt
+touch test2.txt
+echo "testing">> test2.txt
 echo "SERVER_REQ_QUEUE="$SERVER_REQ_QUEUE >> .env
 echo "SERVER_RES_QUEUE="$SERVER_RES_QUEUE >> .env
 echo "ACCESS_KEY="$ACCESS_KEY >> .env
